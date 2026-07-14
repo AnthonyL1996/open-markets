@@ -1,0 +1,23 @@
+# Dev/hobby deployment: the service + a persistent volume for its JSON state.
+# Front this with Cloudflare Tunnel (see BACKEND.md) to expose it over TLS without port-forwarding.
+services:
+  openmarketsd:
+    build: .
+    image: openmarketsd:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      OM_ADDR: ":8080"
+      OM_DATA: "/data/openmarkets.json"
+      OM_VERSION: "phase-a"
+      # Aggregation scale + clamp must match the C# client (VolumeRef 20000, index 0.5–2.0).
+      OM_VOLUME_REF: "20000"
+      OM_INDEX_MIN: "0.5"
+      OM_INDEX_MAX: "2.0"
+      OM_RATE_PER_MIN: "120"
+    volumes:
+      - om_data:/data
+
+volumes:
+  om_data:

@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open Markets — Operator Console</title>
+<style>
+  :root {
+    --bg: #11151c; --panel: #1a212b; --line: #2b3543; --ink: #d7e0ea; --dim: #7e8aa0;
+    --accent: #7ed37e; --warn: #e07c7c; --head: #b4c8e6; --gold: #e0c060;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--mono); }
+  header { display: flex; align-items: center; gap: 1rem; padding: .7rem 1rem;
+    background: linear-gradient(180deg,#1d2630,#151b23); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 1rem; margin: 0; letter-spacing: .04em; color: var(--head); }
+  header .who { margin-left: auto; color: var(--dim); }
+  header select, header button, input, button, textarea { font-family: var(--mono); font-size: .85rem; }
+  main { display: grid; grid-template-columns: 340px 1fr; gap: 1rem; padding: 1rem; align-items: start; }
+  .col { display: flex; flex-direction: column; gap: 1rem; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .8rem .9rem; }
+  .card h2 { margin: 0 0 .6rem; font-size: .72rem; text-transform: uppercase; letter-spacing: .09em; color: var(--dim); }
+  label { display: block; font-size: .7rem; color: var(--dim); margin: .4rem 0 .15rem; }
+  input, select { width: 100%; padding: .35rem .5rem; background: #0e1219; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 4px; }
+  .row { display: flex; gap: .5rem; }
+  .row > * { flex: 1; }
+  button { cursor: pointer; padding: .4rem .6rem; background: #283342; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 4px; }
+  button:hover { background: #324052; }
+  button.primary { background: #2d4a2d; border-color: #3c5e3c; color: #cdeccd; }
+  button.go { background: #2d3c4a; }
+  button.warn { background: #4a2d2d; border-color: #5e3c3c; color: #eccdcd; }
+  button.mini { padding: .2rem .45rem; font-size: .72rem; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: .3rem .4rem; border-bottom: 1px solid var(--line); font-size: .8rem; vertical-align: top; }
+  th { color: var(--dim); font-weight: 600; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; }
+  .up { color: var(--accent); } .down { color: var(--warn); } .dim { color: var(--dim); } .head { color: var(--head); } .gold { color: var(--gold); }
+  .pill { display: inline-block; padding: .05rem .4rem; border-radius: 10px; font-size: .7rem; border: 1px solid var(--line); }
+  .bar { display: inline-flex; gap: 2px; vertical-align: middle; }
+  .seg { width: 9px; height: 12px; border-radius: 1px; background: #2b3543; }
+  .seg.on { background: var(--accent); }
+  .muted { color: var(--dim); font-size: .8rem; }
+  .code { color: var(--gold); font-weight: 600; letter-spacing: .08em; }
+  #log { max-height: 160px; overflow-y: auto; font-size: .76rem; }
+  #log div { padding: .1rem 0; border-bottom: 1px solid #20272f; color: var(--dim); }
+  #log div.err { color: var(--warn); } #log div.ok { color: var(--accent); }
+  .hint { font-size: .72rem; color: var(--dim); margin-top: .3rem; }
+  .banner { padding: .45rem .6rem; border-radius: 4px; font-size: .8rem; margin-bottom: .5rem; }
+  .banner.ok { background: #1c2c1c; border: 1px solid #2f4a2f; color: var(--accent); }
+  .banner.bad { background: #3a2020; border: 1px solid #5e3c3c; color: var(--warn); font-weight: 600; letter-spacing: .04em; }
+  .tline { display: flex; gap: .4rem; align-items: center; margin-bottom: .35rem; }
+  .tline select, .tline input { padding: .25rem .35rem; }
+  .tline .k { flex: 0 0 4.6rem; } .tline .d { flex: 0 0 4rem; }
+  .nowrap { white-space: nowrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>OPEN MARKETS · operator console</h1>
+  <label style="margin:0;color:var(--dim)">city</label>
+  <select id="citySel" style="width:auto" onchange="switchCity(this.value)"></select>
+  <button class="mini" onclick="newCity()">+ new</button>
+  <button class="mini warn" onclick="deleteCity()">delete</button>
+  <label style="margin:0 0 0 1rem;color:var(--dim)" title="Auto-pay the ACTIVE city's due trade/loan installments (deals stay manual — like a vanilla CS loan that repays itself)">
+    <input type="checkbox" id="autopay" onchange="toggleAutopay(this.checked)"> auto-pay
+  </label>
+  <input id="autopaySec" type="number" min="3" value="12" style="width:3.5rem" title="Seconds between auto-payments (raise for a slower, weekly-style cadence)">
+  <span class="dim" style="font-size:.8rem">s</span>
+  <span class="who" id="who"></span>
+</header>
+
+<main>
+  <div class="col">
+    <div class="card">
+      <h2>City / account</h2>
+      <div class="muted" id="acctInfo">No city selected.</div>
+      <label>Display name (leaguemates see this; blank = id)</label>
+      <div class="row">
+        <input id="dispName" placeholder="e.g. Springfield">
+        <button class="go" style="flex:0 0 auto" onclick="setName()">Set</button>
+      </div>
+      <label>Server base URL</label>
+      <input id="server" placeholder="(defaults to this origin)">
+      <div class="hint">Account id + secret are stored in your browser per city.</div>
+    </div>
+
+    <div class="card">
+      <h2>League</h2>
+      <div class="muted" id="leagueInfo">Not in a league.</div>
+      <div class="row" style="margin-top:.5rem">
+        <button class="go" onclick="createLeague()">Create league</button>
+      </div>
+      <label>Join code</label>
+      <div class="row">
+        <input id="joinCode" placeholder="XXXX-XXXX">
+        <button class="go" style="flex:0 0 auto" onclick="joinLeague()">Join</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Post report (net supply)</h2>
+      <label>Commodity</label>
+      <input id="rptCommodity" list="commodities" placeholder="Oil">
+      <label>Net supply (+export / −import)</label>
+      <input id="rptNet" type="number" value="10000">
+      <button class="go" style="margin-top:.5rem;width:100%" onclick="postReport()">Send report</button>
+    </div>
+
+    <div class="card">
+      <h2>Offer trade (basket)</h2>
+      <label>Counterparty account id</label>
+      <input id="trTo" placeholder="other city's account id">
+      <div class="row">
+        <div><label>Default rate (bps)</label><input id="trRate" type="number" value="2000"></div>
+        <div><label>Installments</label><input id="trInst" type="number" value="6" min="1"></div>
+      </div>
+      <label>Basket lines (≥1 give &amp; ≥1 take)</label>
+      <div id="trLines"></div>
+      <div class="row" style="margin-top:.3rem">
+        <button class="mini" onclick="addTradeLine('give','commodity')">+ give line</button>
+        <button class="mini" onclick="addTradeLine('take','commodity')">+ take line</button>
+      </div>
+      <button class="primary" style="margin-top:.5rem;width:100%" onclick="offerTrade()">Offer trade</button>
+      <div class="hint">Values are frozen server-side at accept (base price × league index).</div>
+    </div>
+
+    <div class="card">
+      <h2>Offer loan</h2>
+      <label>Counterparty account id</label>
+      <input id="lnTo" placeholder="other city's account id">
+      <div class="row">
+        <div><label>Role</label>
+          <select id="lnRole"><option value="lend">I lend</option><option value="borrow">I borrow</option></select></div>
+        <div><label>Principal (§)</label><input id="lnPrincipal" type="number" value="50000"></div>
+      </div>
+      <div class="row">
+        <div><label>Interest (bps)</label><input id="lnRate" type="number" value="1500"></div>
+        <div><label>Installments</label><input id="lnInst" type="number" value="6" min="1"></div>
+      </div>
+      <button class="primary" style="margin-top:.5rem;width:100%" onclick="offerLoan()">Offer loan</button>
+      <div class="hint">Negotiable: the other party can counter, accept or decline (see Bonds).</div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card">
+      <h2>City status</h2>
+      <div id="cityState"><div class="muted">No league selected.</div></div>
+    </div>
+
+    <div class="card">
+      <h2>League members <span class="muted" id="mCount"></span></h2>
+      <div style="display:flex;gap:.4rem;align-items:center;margin:.3rem 0;flex-wrap:wrap">
+        <span class="muted">co-op:</span> §
+        <input id="coopAmount" type="number" value="10000" style="width:5.5rem" title="§ used by Invest / Bail">
+        <input id="coopDays" type="number" value="7" min="1" max="14" style="width:3rem" title="investment duration (days)"> d
+        <select id="coopDemand" title="which demand Invest boosts (CS1 combines industrial + office)">
+          <option value="res">Residential</option>
+          <option value="com">Commercial</option>
+          <option value="work">Industry &amp; Office</option>
+        </select>
+      </div>
+      <table id="mTable"><thead><tr><th>Account</th><th>Status</th><th>Role</th><th>Rel</th><th>Pop</th><th>Happy</th><th>Net §</th><th>Debt §</th><th></th></tr></thead>
+        <tbody id="mBody"><tr><td colspan="9" class="dim">No league selected.</td></tr></tbody></table>
+      <div class="hint">“use” prefills counterparty fields · “invest” grants a buff (co-op § / days) · “bail” pays down a defaulted city’s debt.</div>
+    </div>
+
+    <div class="card">
+      <h2>Trades <span class="muted" id="trRefresh"></span></h2>
+      <table id="trTable"><thead><tr>
+        <th>Deal (you give → you get)</th><th>Rate</th><th>Status</th><th>Progress</th><th>Actions</th>
+      </tr></thead><tbody id="trBody"><tr><td colspan="5" class="dim">No league selected.</td></tr></tbody></table>
+    </div>
+
+    <div class="card">
+      <h2>Bonds &amp; loan offers</h2>
+      <table id="bnTable"><thead><tr>
+        <th>Role</th><th>Counterparty</th><th>Terms</th><th>Status</th><th>Progress</th><th>Actions</th>
+      </tr></thead><tbody id="bnBody"><tr><td colspan="6" class="dim">No league selected.</td></tr></tbody></table>
+    </div>
+
+    <div class="card">
+      <h2>Settlements <span class="muted" id="stMeta"></span></h2>
+      <table id="stTable"><thead><tr><th>Seq</th><th>Payer → Receiver</th><th>Amount</th><th>Ref</th></tr></thead>
+        <tbody id="stBody"><tr><td colspan="4" class="dim">—</td></tr></tbody></table>
+    </div>
+
+    <div class="card">
+      <h2>Cash audit (conservation)</h2>
+      <div id="auditTotal" class="muted">—</div>
+      <table id="auTable"><thead><tr><th>Account</th><th>Net</th></tr></thead>
+        <tbody id="auBody"></tbody></table>
+    </div>
+
+    <div class="card">
+      <h2>League price index</h2>
+      <table id="pxTable"><thead><tr><th>Commodity</th><th>Index</th></tr></thead>
+        <tbody id="pxBody"><tr><td colspan="2" class="dim">—</td></tr></tbody></table>
+      <div class="hint">1.00 = no change · &lt;1 cheaper (net supplied) · &gt;1 dearer (net demanded)</div>
+    </div>
+
+    <div class="card">
+      <h2>Activity</h2>
+      <div id="log"></div>
+    </div>
+  </div>
+</main>
+
+<datalist id="commodities">
+  <option>Oil</option><option>Ore</option><option>Logs</option><option>Grain</option><option>Coal</option>
+  <option>Petrol</option><option>Food</option><option>Lumber</option><option>Goods</option><option>Fish</option>
+  <option>AnimalProducts</option><option>Flours</option><option>Paper</option><option>PlanedTimber</option>
+  <option>Petroleum</option><option>Plastics</option><option>Glass</option><option>Metals</option><option>LuxuryProducts</option>
+</datalist>
+
+<script>
+"use strict";
+const QTY_SCALE = 1000; // money.QtyScale — commodity qtyFixed = whole units × 1000
+
+// ---- profile store (localStorage; multiple simulated cities, switchable) ----
+const KEY = "om_console_cities_v1";
+let store = load();
+function load() {
+  try {
+    const o = JSON.parse(localStorage.getItem(KEY));
+    if (o && Array.isArray(o.cities) && typeof o.active === "number") return o; // shape-check, not just parse
+  } catch (e) { /* fall through to clean default */ }
+  return { cities: [], active: -1 };
+}
+function save() { localStorage.setItem(KEY, JSON.stringify(store)); }
+function active() { return store.active >= 0 ? store.cities[store.active] : null; }
+
+function log(msg, cls) {
+  const el = document.getElementById("log");
+  const d = document.createElement("div");
+  if (cls) d.className = cls;
+  d.textContent = msg;
+  el.prepend(d);
+}
+
+// ---- formatting ----
+function money(cents) { const n = Number(cents) || 0; return "§" + (n / 100).toFixed(2); }
+function shortId(id) { return id ? String(id).slice(0, 8) + "…" : "—"; }
+function pct(bps) { return (Number(bps) / 100) + "%"; }
+function esc(s) { return String(s).replace(/[<>&"']/g, m => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" }[m])); }
+// Friendly name for an account id, from the latest members roster.
+let nameById = {};
+function who(id) { return nameById[id] || shortId(id); }
+
+// ---- HTTP ----
+function baseUrl() {
+  const c = active();
+  const s = (c && c.server) || document.getElementById("server").value.trim();
+  return s || window.location.origin;
+}
+function bearer() { const c = active(); return c && c.accountId ? c.accountId + "." + c.secret : null; }
+
+async function api(method, path, body) {
+  const headers = {};
+  const b = bearer();
+  if (b) headers["Authorization"] = "Bearer " + b;
+  if (body) headers["Content-Type"] = "application/json";
+  const res = await fetch(baseUrl() + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  let data = null;
+  const txt = await res.text();
+  if (txt) { try { data = JSON.parse(txt); } catch (e) { data = txt; } }
+  if (!res.ok) throw new Error((data && data.error) || (res.status + " " + path));
+  return data;
+}
+
+// ---- city / account ----
+function renderCities() {
+  const sel = document.getElementById("citySel");
+  sel.innerHTML = "";
+  store.cities.forEach((c, i) => {
+    const o = document.createElement("option");
+    o.value = i; o.textContent = c.name;
+    if (i === store.active) o.selected = true;
+    sel.appendChild(o);
+  });
+  const c = active();
+  document.getElementById("who").textContent = c ? (c.name + (c.leagueId ? " · in league" : " · no league")) : "no city";
+  document.getElementById("acctInfo").innerHTML = c
+    ? ("<b>" + esc(c.name) + "</b><br><span class='dim'>account</span> " + (c.accountId || "—"))
+    : "No city selected.";
+  document.getElementById("leagueInfo").innerHTML = c && c.leagueId
+    ? ("league " + c.leagueId.slice(0, 10) + "…" + (c.joinCode ? "<br>join code <span class='code'>" + c.joinCode + "</span>" : ""))
+    : "Not in a league.";
+  if (c && c.server) document.getElementById("server").value = c.server;
+  document.getElementById("dispName").value = c && c.displayName ? c.displayName : "";
+  refresh();
+}
+function switchCity(i) { store.active = parseInt(i, 10); save(); renderCities(); }
+
+async function newCity() {
+  const name = prompt("Name this simulated city:", "City " + (store.cities.length + 1));
+  if (!name) return;
+  const server = document.getElementById("server").value.trim();
+  // temp-activate a blank profile so api() uses the right base URL
+  store.cities.push({ name, server, accountId: "", secret: "", leagueId: "", joinCode: "", displayName: "" });
+  store.active = store.cities.length - 1; save(); renderCities();
+  try {
+    const a = await api("POST", "/accounts", null);
+    const c = active(); c.accountId = a.accountId; c.secret = a.secret; save(); renderCities();
+    log("created city '" + name + "' → account " + a.accountId, "ok");
+  } catch (e) { log("create account failed: " + e.message, "err"); }
+}
+function deleteCity() {
+  if (store.active < 0) return;
+  if (!confirm("Delete '" + active().name + "' from this browser? (the server account remains)")) return;
+  store.cities.splice(store.active, 1);
+  store.active = store.cities.length ? 0 : -1; save(); renderCities();
+}
+async function setName() {
+  const c = active(); if (!c || !c.accountId) return log("select/create a city first", "err");
+  const name = document.getElementById("dispName").value.trim();
+  try {
+    const r = await api("POST", "/accounts/name", { name });
+    c.displayName = r.displayName; save();
+    log("display name set to '" + (r.displayName || "(cleared)") + "'", "ok"); refresh();
+  } catch (e) { log("set name failed: " + e.message, "err"); }
+}
+
+// ---- league ----
+async function createLeague() {
+  if (!active()) return log("select/create a city first", "err");
+  const name = prompt("League name:", "Friends");
+  if (!name) return;
+  try {
+    const l = await api("POST", "/leagues", { name });
+    const c = active(); c.leagueId = l.leagueId; c.joinCode = l.joinCode; save(); renderCities();
+    log("created league → join code " + l.joinCode, "ok");
+  } catch (e) { log("create league failed: " + e.message, "err"); }
+}
+async function joinLeague() {
+  if (!active()) return log("select/create a city first", "err");
+  const code = document.getElementById("joinCode").value.trim();
+  if (!code) return;
+  try {
+    const j = await api("POST", "/leagues/join", { joinCode: code });
+    const c = active(); c.leagueId = j.leagueId; c.joinCode = code; save(); renderCities();
+    log("joined league " + j.leagueId, "ok");
+  } catch (e) { log("join failed: " + e.message, "err"); }
+}
+
+// ---- report ----
+async function postReport() {
+  const c = active(); if (!c || !c.leagueId) return log("need a city in a league", "err");
+  const commodity = document.getElementById("rptCommodity").value.trim();
+  const netSupply = parseFloat(document.getElementById("rptNet").value);
+  if (!commodity) return;
+  try {
+    await api("POST", "/report", { leagueId: c.leagueId, commodity, netSupply });
+    log("reported " + commodity + " net=" + netSupply, "ok"); refresh();
+  } catch (e) { log("report failed: " + e.message, "err"); }
+}
+
+// ---- trades (basket) ----
+function addTradeLine(dir, kind) {
+  const wrap = document.getElementById("trLines");
+  const div = document.createElement("div");
+  div.className = "tline";
+  div.innerHTML =
+    "<select class='d t-dir'><option value='give'>give</option><option value='take'>take</option></select>" +
+    "<select class='k t-kind'><option value='commodity'>commod.</option><option value='gold'>gold §</option></select>" +
+    "<input class='t-commodity' list='commodities' placeholder='Oil' style='flex:1.4'>" +
+    "<input class='t-qty' type='number' placeholder='units' value='100' style='flex:1'>" +
+    "<input class='t-gold' type='number' placeholder='§ amount' style='flex:1;display:none'>" +
+    "<button class='mini warn' onclick='this.parentNode.remove()'>×</button>";
+  wrap.appendChild(div);
+  div.querySelector(".t-dir").value = dir;
+  const kindSel = div.querySelector(".t-kind");
+  kindSel.value = kind;
+  const toggle = () => {
+    const gold = kindSel.value === "gold";
+    div.querySelector(".t-commodity").style.display = gold ? "none" : "";
+    div.querySelector(".t-qty").style.display = gold ? "none" : "";
+    div.querySelector(".t-gold").style.display = gold ? "" : "none";
+  };
+  kindSel.addEventListener("change", toggle); toggle();
+}
+function readTradeLines() {
+  const items = [];
+  document.querySelectorAll("#trLines .tline").forEach(row => {
+    const dir = row.querySelector(".t-dir").value;
+    const kind = row.querySelector(".t-kind").value;
+    if (kind === "gold") {
+      const gold = parseFloat(row.querySelector(".t-gold").value);
+      if (Number.isFinite(gold) && gold > 0) items.push({ kind: "gold", goldCents: Math.round(gold * 100), dir });
+    } else {
+      const commodity = row.querySelector(".t-commodity").value.trim();
+      const units = parseFloat(row.querySelector(".t-qty").value);
+      if (commodity && Number.isFinite(units) && units > 0)
+        items.push({ kind: "commodity", commodity, qtyFixed: Math.round(units * QTY_SCALE), dir });
+    }
+  });
+  return items;
+}
+async function offerTrade() {
+  const c = active(); if (!c || !c.leagueId) return log("need a city in a league", "err");
+  const counterparty = document.getElementById("trTo").value.trim();
+  const items = readTradeLines();
+  const dto = {
+    leagueId: c.leagueId, counterparty,
+    defaultRateBps: parseInt(document.getElementById("trRate").value, 10),
+    installments: parseInt(document.getElementById("trInst").value, 10),
+    items
+  };
+  if (!counterparty) return log("counterparty required", "err");
+  if (!items.some(i => i.dir === "give") || !items.some(i => i.dir === "take"))
+    return log("need at least one give AND one take line", "err");
+  try { await api("POST", "/trades", dto); log("offered trade · " + items.length + " lines → " + shortId(counterparty), "ok"); refresh(); }
+  catch (e) { log("trade offer failed: " + e.message, "err"); }
+}
+async function tradeAction(id, action) {
+  try { await api("POST", "/trades/" + id + "/" + action, null); log("trade " + action + " → " + id.slice(0, 8), "ok"); refresh(); }
+  catch (e) { log("trade " + action + " failed: " + e.message, "err"); }
+}
+
+// ---- loans ----
+async function offerLoan() {
+  const c = active(); if (!c || !c.leagueId) return log("need a city in a league", "err");
+  const dto = {
+    leagueId: c.leagueId,
+    role: document.getElementById("lnRole").value,
+    counterparty: document.getElementById("lnTo").value.trim(),
+    principalCents: Math.round(parseFloat(document.getElementById("lnPrincipal").value) * 100),
+    interestBps: parseInt(document.getElementById("lnRate").value, 10),
+    installments: parseInt(document.getElementById("lnInst").value, 10)
+  };
+  if (!dto.counterparty) return log("counterparty required", "err");
+  if (!Number.isFinite(dto.principalCents) || dto.principalCents <= 0) return log("principal must be > 0", "err");
+  try { await api("POST", "/loans", dto); log("offered loan (" + dto.role + ") " + money(dto.principalCents) + " → " + shortId(dto.counterparty), "ok"); refresh(); }
+  catch (e) { log("loan offer failed: " + e.message, "err"); }
+}
+async function loanAction(id, action) {
+  if (action === "counter") return loanCounter(id);
+  try { await api("POST", "/loans/" + id + "/" + action, null); log("loan " + action + " → " + id.slice(0, 8), "ok"); refresh(); }
+  catch (e) { log("loan " + action + " failed: " + e.message, "err"); }
+}
+async function loanCounter(id) {
+  const p = parseFloat(prompt("Counter — principal (§):"));
+  if (!Number.isFinite(p)) return;
+  const r = parseInt(prompt("Counter — interest (bps, e.g. 2000 = 20%):"), 10);
+  if (!Number.isFinite(r)) return;
+  const n = parseInt(prompt("Counter — installments:"), 10);
+  if (!Number.isFinite(n)) return;
+  try {
+    await api("POST", "/loans/" + id + "/counter", { principalCents: Math.round(p * 100), interestBps: r, installments: n });
+    log("countered loan " + id.slice(0, 8), "ok"); refresh();
+  } catch (e) { log("counter failed: " + e.message, "err"); }
+}
+async function bondSettle(id) {
+  try { await api("POST", "/bonds/" + id + "/settle", null); log("repaid bond " + id.slice(0, 8), "ok"); refresh(); }
+  catch (e) { log("bond settle failed: " + e.message, "err"); }
+}
+
+// ---- M8 co-op levers (the active city is the issuer/bailer) ----
+function coopAmountCents() { return Math.round((parseFloat(document.getElementById("coopAmount").value) || 0) * 100); }
+async function invest(toId) {
+  const c = active(); if (!c || !c.leagueId) { log("join a league first", "err"); return; }
+  const days = Math.max(1, Math.min(14, parseInt(document.getElementById("coopDays").value, 10) || 7));
+  const demandKind = document.getElementById("coopDemand").value || "res";
+  try {
+    const r = await api("POST", "/investment-office?league=" + encodeURIComponent(c.leagueId), { granteeId: toId, costCents: coopAmountCents(), days, demandKind });
+    const kindLabel = { res: "residential", com: "commercial", work: "industry/office" }[demandKind] || demandKind;
+    log("invested in " + (who(toId) || toId.slice(0, 8)) + " (+" + (r.effect ? r.effect.demandBoost : "?") + " " + kindLabel + " demand, +" +
+      (r.effect ? r.effect.attractRate : "?") + " attract, " + days + "d)", "ok");
+    refresh();
+  } catch (e) { log("invest failed: " + e.message, "err"); }
+}
+async function bailout(toId) {
+  const c = active(); if (!c || !c.leagueId) { log("join a league first", "err"); return; }
+  try {
+    const r = await api("POST", "/bailout?league=" + encodeURIComponent(c.leagueId), { debtorId: toId, cents: coopAmountCents() });
+    log("bailed out " + (who(toId) || toId.slice(0, 8)) + " by " + money(r.appliedCents || 0), "ok");
+    refresh();
+  } catch (e) { log("bail failed: " + e.message, "err"); }
+}
+
+// ---- auto-pay: the active city auto-settles its DUE installments (deals stay manual). The real city in-game
+// already auto-settles on day rollover; this gives the operator console the same hands-off repayment so a
+// test partner driven from the browser doesn't need a click per installment. Paces one payment per interval. ----
+let autopayOn = false, _lastPayAt = 0;
+function toggleAutopay(on) {
+  autopayOn = on;
+  log("auto-pay " + (on ? ("ON — " + (active() ? active().name : "active city") + " will settle its due installments") : "off"));
+}
+// True when `me` is the net payer of an accepted basket (owes cash): receives more frozen value than it gives.
+function isNetPayer(t, me) {
+  const flip = t.counterparty === me; // item.dir is relative to the offerer
+  let net = 0;
+  (t.items || []).forEach(it => {
+    let d = it.dir; if (flip) d = d === "give" ? "take" : "give";
+    const v = it.valueCentsAtAccept || 0;
+    net += (d === "give" ? -v : v);   // give value out (−), take value in (+); net > 0 ⇒ I owe the difference
+  });
+  return net > 0;
+}
+async function autopayTick() {
+  if (!autopayOn) return;
+  const c = active();
+  if (!c || !c.leagueId || !c.accountId) return;
+  const sec = Math.max(3, parseInt(document.getElementById("autopaySec").value, 10) || 12);
+  if (Date.now() - _lastPayAt < sec * 1000) return;
+  const me = c.accountId, L = encodeURIComponent(c.leagueId);
+  try {
+    // Loans I owe (I'm the debtor) first, then trade installments where I'm the net payer. One per tick to pace it.
+    const bn = await api("GET", "/bonds?league=" + L, null);
+    for (const b of ((bn && bn.bonds) || [])) {
+      if (b.debtorId === me && (b.status === "active" || b.status === "delinquent") && b.settled < b.installments) {
+        await api("POST", "/bonds/" + b.id + "/settle", null);
+        log("auto-paid loan installment " + (b.settled + 1) + "/" + b.installments + " (" + shortId(b.id) + ")", "ok");
+        _lastPayAt = Date.now(); refresh(); return;
+      }
+    }
+    const tr = await api("GET", "/trades?league=" + L, null);
+    for (const t of ((tr && tr.trades) || [])) {
+      if (t.status !== "active" || t.settled >= t.installments || !isNetPayer(t, me)) continue;
+      await api("POST", "/trades/" + t.id + "/settle", null);
+      log("auto-paid trade installment " + (t.settled + 1) + "/" + t.installments + " (" + shortId(t.id) + ")", "ok");
+      _lastPayAt = Date.now(); refresh(); return;
+    }
+  } catch (e) { log("auto-pay error: " + e.message, "err"); }
+}
+
+// ---- shared render helpers ----
+function segBar(filled, total) {
+  const cap = 60; let segs = total, on = filled;
+  if (segs > cap) { on = Math.floor(filled * cap / total); segs = cap; }
+  let h = "<span class='bar'>";
+  for (let i = 0; i < segs; i++) h += "<span class='seg" + (i < on ? " on" : "") + "'></span>";
+  return h + "</span>";
+}
+function btn(label, cls, id, action, attr) {
+  return "<button class='mini " + cls + "' data-" + attr + "='" + esc(id) + "' data-action='" + action + "'>" + label + "</button> ";
+}
+function statusPill(s) {
+  const up = ["completed", "cleared", "active"], dim = ["declined", "cancelled", "writtenOff"], down = ["delinquent", "defaultedReceivable"];
+  const cls = up.indexOf(s) >= 0 ? "up" : dim.indexOf(s) >= 0 ? "dim" : down.indexOf(s) >= 0 ? "down" : "head";
+  return "<span class='pill " + cls + "'>" + esc(s) + "</span>";
+}
+
+// ---- trades render ----
+function tradeSides(t, me) {
+  const flip = t.counterparty === me; // item.dir is relative to the offerer
+  const give = [], get = [];
+  (t.items || []).forEach(it => {
+    let d = it.dir;
+    if (flip) d = d === "give" ? "take" : "give";
+    let label = it.kind === "gold" ? money(it.goldCents) : (Math.trunc(it.qtyFixed / QTY_SCALE) + " " + esc(it.commodity));
+    if (it.valueCentsAtAccept) label += " <span class='dim'>(" + money(it.valueCentsAtAccept) + ")</span>";
+    (d === "give" ? give : get).push(label);
+  });
+  return { give, get };
+}
+function renderTrades(list) {
+  const me = active() ? active().accountId : "";
+  const body = document.getElementById("trBody");
+  if (!list || !list.length) { body.innerHTML = "<tr><td colspan='5' class='dim'>No trades.</td></tr>"; return; }
+  body.innerHTML = "";
+  list.forEach(t => {
+    const mine = t.offeredBy === me;
+    const s = tradeSides(t, me);
+    let actions;
+    if (t.status === "offered" && !mine) actions = btn("accept", "primary", t.id, "accept", "tid") + btn("decline", "warn", t.id, "decline", "tid");
+    else if (t.status === "offered" && mine) actions = "<span class='dim'>awaiting them</span> " + btn("cancel", "warn", t.id, "cancel", "tid");
+    else if (t.status === "active" && t.settled < t.installments) actions = btn("settle", "go", t.id, "settle", "tid");
+    else actions = "<span class='dim'>—</span>";
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td><span class='down'>give</span> " + (s.give.join(", ") || "<span class='dim'>—</span>") +
+      "<br><span class='up'>get</span> " + (s.get.join(", ") || "<span class='dim'>—</span>") + "</td>" +
+      "<td class='nowrap'>" + pct(t.defaultRateBps) + "</td>" +
+      "<td>" + statusPill(t.status) + "</td>" +
+      "<td>" + segBar(t.settled, t.installments) + " <span class='dim'>" + t.settled + "/" + t.installments + "</span></td>" +
+      "<td>" + actions + "</td>";
+    body.appendChild(tr);
+  });
+}
+
+// ---- bonds & loan offers render ----
+function renderBonds(list) {
+  const me = active() ? active().accountId : "";
+  const body = document.getElementById("bnBody");
+  if (!list || !list.length) { body.innerHTML = "<tr><td colspan='6' class='dim'>No bonds or loan offers.</td></tr>"; return; }
+  body.innerHTML = "";
+  list.forEach(b => {
+    const iDebtor = b.debtorId === me;
+    const other = iDebtor ? b.creditorId : b.debtorId;
+    const role = iDebtor ? "<span class='down'>debtor</span>" : "<span class='up'>creditor</span>";
+    const isLoanOffer = b.status === "offered";
+    let actions = "<span class='dim'>—</span>";
+    if (isLoanOffer) {
+      const mineToAct = b.proposedBy !== me; // you can act only when the standing terms aren't yours
+      if (mineToAct) actions = btn("accept", "primary", b.id, "accept", "lid") + btn("counter", "go", b.id, "counter", "lid") + btn("decline", "warn", b.id, "decline", "lid");
+      else actions = "<span class='dim'>your terms — awaiting them</span> " + btn("cancel", "warn", b.id, "cancel", "lid");
+    } else if (iDebtor && (b.status === "active" || b.status === "delinquent") && b.settled < b.installments) {
+      actions = btn("repay", "go", b.id, "settle", "sid");
+    }
+    let terms = money(b.principalCents) + " @ " + pct(b.interestBps);
+    if (b.totalDueCents) terms += " <span class='dim'>(due " + money(b.totalDueCents) + ")</span>";
+    if (b.status === "defaultedReceivable" && b.defaultedRemainingCents) terms += "<br><span class='down'>frozen " + money(b.defaultedRemainingCents) + "</span>";
+    if (b.garnishedCents) terms += "<br><span class='dim'>garnished " + money(b.garnishedCents) + "</span>";
+    const origin = "<br><span class='dim'>" + esc(b.origin) + (b.missedCount ? " · missed " + b.missedCount : "") + "</span>";
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td>" + role + origin + "</td>" +
+      "<td class='dim' title='" + esc(other) + "'>" + esc(who(other)) + "</td>" +
+      "<td class='nowrap'>" + terms + "</td>" +
+      "<td>" + statusPill(b.status) + "</td>" +
+      "<td>" + segBar(b.settled, b.installments) + " <span class='dim'>" + b.settled + "/" + b.installments + "</span></td>" +
+      "<td>" + actions + "</td>";
+    body.appendChild(tr);
+  });
+}
+
+// ---- members render ----
+function lastSeenText(sec) {
+  if (!sec) return "offline";
+  const ago = Date.now() / 1000 - sec;
+  if (ago < 0) return "online";
+  if (ago < 60) return "just now";
+  if (ago < 3600) return Math.floor(ago / 60) + "m ago";
+  if (ago < 86400) return Math.floor(ago / 3600) + "h ago";
+  return Math.floor(ago / 86400) + "d ago";
+}
+function hasProfile(m) { return (m.population || 0) > 0 || (m.buildingCount || 0) > 0 || !!m.cityName; }
+function profileTitle(m) {
+  if (!hasProfile(m)) return (m.cityName ? m.cityName + " — " : "") + "no city profile reported yet";
+  const L = [];
+  if (m.cityName) L.push(m.cityName);
+  L.push("Pop " + (m.population || 0) + " · Happy " + (m.happiness || 0) + "% · Attract " + (m.attractiveness || 0));
+  L.push("Treasury §" + Math.trunc((m.cashCents || 0) / 100) +
+    " (wk +§" + Math.trunc((m.weeklyIncomeCents || 0) / 100) + " / -§" + Math.trunc((m.weeklyExpensesCents || 0) / 100) + ")");
+  L.push("Zones R" + (m.resBuildings || 0) + " C" + (m.comBuildings || 0) + " O" + (m.offBuildings || 0) +
+    " I" + (m.indBuildings || 0) + " (ind workers " + (m.indWorkers || 0) + ")");
+  if ((m.farmWorkers || 0) + (m.forestWorkers || 0) + (m.oreWorkers || 0) + (m.oilWorkers || 0) > 0)
+    L.push("Industry: farm " + (m.farmWorkers || 0) + " forest " + (m.forestWorkers || 0) +
+      " ore " + (m.oreWorkers || 0) + " oil " + (m.oilWorkers || 0));
+  L.push("Unemp " + (m.unemployment || 0) + "% · Buildings " + (m.buildingCount || 0) +
+    " · Land " + (m.landValue || 0) + " · Tourism " + (m.tourists || 0) + " · Crime " + (m.crime || 0) + "%");
+  return L.join("\n");
+}
+function renderMembers(dto) {
+  const me = active() ? active().accountId : "";
+  const body = document.getElementById("mBody");
+  const arr = dto && dto.members ? dto.members : [];
+  nameById = {};
+  arr.forEach(m => { if (m.displayName) nameById[m.accountId] = m.displayName; });
+  document.getElementById("mCount").textContent = arr.length ? "· " + arr.length : "";
+  if (!arr.length) { body.innerHTML = "<tr><td colspan='9' class='dim'>—</td></tr>"; return; }
+  body.innerHTML = "";
+  arr.forEach(m => {
+    const isMe = m.accountId === me;
+    let role = "";
+    if (m.isOwner) role += "<span class='pill head'>owner</span> ";
+    if (isMe) role += "<span class='pill up'>you</span> ";
+    if (m.austerity) role += "<span class='pill down'>austerity</span>";
+    const relCls = m.reliability >= 80 ? "up" : m.reliability < 50 ? "down" : "dim";
+    const label = m.displayName ? esc(m.displayName) : "<span class='dim'>" + shortId(m.accountId) + "</span>";
+    let actions = "";
+    if (!isMe) {
+      const aid = esc(m.accountId);
+      actions = "<button class='mini' data-aid='" + aid + "'>use</button> " +
+        "<button class='mini' data-invest='" + aid + "'>invest</button>";
+      if (m.austerity) actions += " <button class='mini warn' data-bail='" + aid + "'>bail</button>";
+    }
+    const net = m.netCents || 0, debt = m.outstandingDebtCents || 0;
+    const hp = hasProfile(m);
+    const status = m.online ? "<span class='up'>● online</span>" : "<span class='dim'>○ " + esc(lastSeenText(m.lastSeenSec)) + "</span>";
+    const happyCls = !hp ? "dim" : (m.happiness >= 70 ? "up" : (m.happiness < 45 ? "down" : ""));
+    body.innerHTML +=
+      "<tr title='" + esc(profileTitle(m)) + "'>" +
+      "<td title='" + esc(m.accountId) + "' style='word-break:break-all'>" + label + "</td>" +
+      "<td class='nowrap'>" + status + "</td>" +
+      "<td>" + (role || "<span class='dim'>—</span>") + "</td>" +
+      "<td class='" + relCls + "'>" + (m.reliability != null ? m.reliability + "%" : "—") + "</td>" +
+      "<td>" + (hp ? (m.population || 0).toLocaleString() : "<span class='dim'>—</span>") + "</td>" +
+      "<td class='" + happyCls + "'>" + (hp ? (m.happiness || 0) + "%" : "—") + "</td>" +
+      "<td class='" + (net >= 0 ? "up" : "down") + "'>" + money(net) + "</td>" +
+      "<td class='" + (debt > 0 ? "down" : "dim") + "'>" + (debt > 0 ? money(debt) : "—") + "</td>" +
+      "<td class='nowrap'>" + actions + "</td></tr>";
+  });
+}
+
+// ---- prices render ----
+function renderPrices(dto) {
+  const body = document.getElementById("pxBody");
+  const arr = dto && dto.commodities ? dto.commodities : [];
+  if (!arr.length) { body.innerHTML = "<tr><td colspan='2' class='dim'>no reports yet</td></tr>"; return; }
+  body.innerHTML = "";
+  arr.forEach(c => {
+    const cls = c.index < 1 ? "up" : c.index > 1 ? "down" : "dim";
+    body.innerHTML += "<tr><td>" + esc(c.commodity) + "</td><td class='" + cls + "'>" + c.index.toFixed(2) + "</td></tr>";
+  });
+}
+
+// ---- settlements render ----
+function renderSettlements(dto) {
+  const me = active() ? active().accountId : "";
+  const body = document.getElementById("stBody");
+  const events = (dto && dto.events) ? dto.events.slice() : [];
+  document.getElementById("stMeta").textContent = dto ? ("· latest " + dto.latestSeq + " · epoch " + String(dto.epoch).slice(0, 6)) : "";
+  if (!events.length) { body.innerHTML = "<tr><td colspan='4' class='dim'>no settlements yet</td></tr>"; return; }
+  events.reverse(); // newest first
+  body.innerHTML = "";
+  events.slice(0, 30).forEach(e => {
+    const payer = e.payerId === me ? "<span class='down'>you</span>" : esc(who(e.payerId));
+    const recv = e.receiverId === me ? "<span class='up'>you</span>" : esc(who(e.receiverId));
+    body.innerHTML +=
+      "<tr><td class='dim'>" + e.seq + "</td>" +
+      "<td>" + payer + " → " + recv + "</td>" +
+      "<td class='gold nowrap'>" + money(e.cents) + "</td>" +
+      "<td class='dim' style='word-break:break-all'>" + esc(e.ref) + "</td></tr>";
+  });
+}
+
+// ---- city-state render ----
+function renderCityState(dto) {
+  const el = document.getElementById("cityState");
+  if (!dto) { el.innerHTML = "<div class='muted'>—</div>"; return; }
+  const banner = dto.austerity
+    ? "<div class='banner bad'>⚠ AUSTERITY ACTIVE — taxes locked, garnishment running</div>"
+    : "<div class='banner ok'>✓ solvent — no austerity</div>";
+  let fx = "";
+  const fxs = dto.effects || [];
+  if (fxs.length) {
+    fx = "<div class='muted' style='margin-top:.4rem'>active co-op buffs:</div>";
+    fxs.forEach(e => {
+      fx += "<div class='up' style='font-size:.85em'>+ " + esc(e.kind || "buff") + " from " + esc(who(e.issuerId)) +
+        " · +" + (e.demandBoost || 0) + " demand, +" + (e.attractRate || 0) + " attract · " +
+        (e.ticksRemaining || 0) + " ticks left</div>";
+    });
+  }
+  el.innerHTML = banner +
+    "<div class='muted'>outstanding debt <span class='" + (dto.outstandingDebtCents ? "down" : "up") + "'>" + money(dto.outstandingDebtCents) + "</span>" +
+    " · defaulted bonds <span class='" + (dto.defaultedBonds ? "down" : "dim") + "'>" + dto.defaultedBonds + "</span></div>" + fx;
+}
+
+// ---- audit render ----
+function renderAudit(dto) {
+  const totEl = document.getElementById("auditTotal");
+  const body = document.getElementById("auBody");
+  if (!dto) { totEl.textContent = "—"; body.innerHTML = ""; return; }
+  const ok = dto.total === 0;
+  totEl.innerHTML = "conservation total: <span class='" + (ok ? "up" : "down") + "'>" + money(dto.total) + (ok ? " ✓" : " ✗ INVARIANT VIOLATION") + "</span>";
+  const me = active() ? active().accountId : "";
+  body.innerHTML = "";
+  (dto.accounts || []).forEach(a => {
+    const cls = a.netCents > 0 ? "up" : a.netCents < 0 ? "down" : "dim";
+    const label = a.accountId === me ? "<span class='head'>" + esc(who(a.accountId)) + " (you)</span>" : esc(who(a.accountId));
+    body.innerHTML += "<tr><td title='" + esc(a.accountId) + "'>" + label + "</td><td class='" + cls + " nowrap'>" + money(a.netCents) + "</td></tr>";
+  });
+}
+
+// ---- refresh loop ----
+let busy = false;
+function safe(fn) { return fn().catch(() => { }); }
+async function refresh() {
+  const c = active();
+  if (!c || !c.leagueId || !c.accountId || busy) return; // need a resolved account so side/progress render right
+  busy = true;
+  const L = encodeURIComponent(c.leagueId);
+  // Members first so name lookups are warm for the other renderers; then everything in parallel,
+  // each isolated so one failing feed doesn't blank the rest.
+  await safe(async () => renderMembers(await api("GET", "/leagues/members?league=" + L, null)));
+  await Promise.all([
+    safe(async () => { const tr = await api("GET", "/trades?league=" + L, null); renderTrades(tr ? tr.trades : []); }),
+    safe(async () => { const bn = await api("GET", "/bonds?league=" + L, null); renderBonds(bn ? bn.bonds : []); }),
+    safe(async () => renderPrices(await api("GET", "/prices?league=" + L, null))),
+    safe(async () => renderSettlements(await api("GET", "/settlements?league=" + L + "&since=0", null))),
+    safe(async () => renderCityState(await api("GET", "/citystate?league=" + L, null))),
+    safe(async () => renderAudit(await api("GET", "/audit?league=" + L, null)))
+  ]);
+  document.getElementById("trRefresh").textContent = "· updated " + new Date().toLocaleTimeString();
+  busy = false;
+}
+
+// ---- delegated click handlers (survive innerHTML rebuilds) ----
+document.getElementById("trBody").addEventListener("click", e => {
+  const b = e.target.closest ? e.target.closest("button[data-tid]") : null;
+  if (b) tradeAction(b.getAttribute("data-tid"), b.getAttribute("data-action"));
+});
+document.getElementById("bnBody").addEventListener("click", e => {
+  const t = e.target.closest ? e.target.closest("button[data-sid],button[data-lid]") : null;
+  if (!t) return;
+  const sid = t.getAttribute("data-sid");
+  if (sid) { bondSettle(sid); return; }
+  loanAction(t.getAttribute("data-lid"), t.getAttribute("data-action"));
+});
+// Members-table row buttons: "use" prefills counterparty fields; "invest"/"bail" drive the M8 co-op levers.
+document.getElementById("mBody").addEventListener("click", e => {
+  const t = e.target.closest ? e.target.closest("button[data-aid],button[data-invest],button[data-bail]") : null;
+  if (!t) return;
+  const useId = t.getAttribute("data-aid");
+  if (useId) {
+    ["trTo", "lnTo"].forEach(f => { document.getElementById(f).value = useId; });
+    log("counterparty set to " + useId.slice(0, 8) + "…");
+    return;
+  }
+  const inv = t.getAttribute("data-invest");
+  if (inv) { invest(inv); return; }
+  const bail = t.getAttribute("data-bail");
+  if (bail) { bailout(bail); }
+});
+
+// seed the trade composer with one give + one take line so it's usable immediately
+addTradeLine("give", "commodity");
+addTradeLine("take", "gold");
+renderCities();
+setInterval(refresh, 4000);
+setInterval(autopayTick, 2000);   // auto-pay throttles itself to the chosen interval; no-op while toggled off
+</script>
+</body>
+</html>

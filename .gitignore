@@ -1,0 +1,28 @@
+# Build output
+bin/
+obj/
+*.user
+*.suo
+
+# Per-machine path overrides (never commit local paths)
+Directory.Build.props.user
+
+# IDEs
+.vs/
+.idea/
+*.csproj.user
+*.sln.DotSettings.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# NuGet
+*.nupkg
+packages/
+
+# Claude Code — personal/local overrides (shared config in .claude/ is committed)
+.claude/settings.local.json
+
+# Local Codex CLI config (machine-specific paths)
+.codex/

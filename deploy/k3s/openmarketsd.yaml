@@ -1,0 +1,86 @@
+# OpenMarkets server on k3s. Single in-memory store persisted to a JSON file → ONE replica only (Recreate),
+# backed by a ReadWriteOnce PVC. TLS is terminated by Cloudflare at the edge, so this serves plain HTTP in-cluster.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openmarkets
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: openmarkets-data
+  namespace: openmarkets
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path # k3s default; change if you use another StorageClass
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openmarketsd
+  namespace: openmarkets
+  labels: { app: openmarketsd }
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # never run two writers against the single JSON store / RWO volume
+  selector:
+    matchLabels: { app: openmarketsd }
+  template:
+    metadata:
+      labels: { app: openmarketsd }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532 # distroless "nonroot"
+        runAsGroup: 65532
+        fsGroup: 65532 # makes the mounted PVC writable by the nonroot user
+      containers:
+        - name: openmarketsd
+          # Built from server/Dockerfile. Replace with your registry ref, OR import the tar into k3s
+          # (see docs/RUNNING-THE-SERVER.md) — then this exact ref resolves locally.
+          image: docker.io/library/openmarketsd:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { containerPort: 8080, name: http }
+          env:
+            - { name: OM_CONSOLE, value: "0" } # hide the operator console in production
+            - { name: OM_RATE_PER_MIN, value: "120" } # keep the per-IP limiter ON in production
+            - { name: OM_DUE_INTERVAL_SEC, value: "2700" } # ≈ one in-game day
+            - { name: OM_DATA, value: "/data/openmarkets.json" }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true # all writes go to /data (the PVC)
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { cpu: 250m, memory: 128Mi }
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: openmarkets-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openmarketsd
+  namespace: openmarkets
+spec:
+  type: ClusterIP
+  selector: { app: openmarketsd }
+  ports:
+    - { name: http, port: 8080, targetPort: http }

@@ -1,0 +1,8 @@
+# Apply everything with:  kubectl apply -k deploy/k3s
+# Public access is via a Cloudflare Tunnel (outbound-only; no port-forward, no exposed home IP) — see
+# docs/RUNNING-THE-SERVER.md. The cloudflared-token Secret is created out-of-band (NOT committed / not listed here).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - openmarketsd.yaml
+  - cloudflared.yaml

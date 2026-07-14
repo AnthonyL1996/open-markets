@@ -1,0 +1,41 @@
+<Project>
+
+  <!--
+    Locates your Cities: Skylines install so the csproj can reference the game DLLs,
+    and finds the Mods folder for auto-deploy. Cross-platform (macOS / Windows / Linux).
+
+    Override any of these WITHOUT editing this file by creating
+    `Directory.Build.props.user` next to it (gitignored). See the .example file.
+    Or pass on the command line:  dotnet build -p:ManagedDir="/path/to/Managed"
+  -->
+
+  <!-- Optional per-machine overrides (gitignored). Imported first so it wins. -->
+  <Import Project="$(MSBuildThisFileDirectory)Directory.Build.props.user"
+          Condition="Exists('$(MSBuildThisFileDirectory)Directory.Build.props.user')" />
+
+  <PropertyGroup>
+    <ManagedDirProvided Condition="'$(ManagedDir)' != ''">true</ManagedDirProvided>
+  </PropertyGroup>
+
+  <!-- macOS defaults (Steam) -->
+  <PropertyGroup Condition="'$(ManagedDirProvided)' != 'true' AND $([MSBuild]::IsOSPlatform('OSX'))">
+    <GameDir>$(HOME)/Library/Application Support/Steam/steamapps/common/Cities_Skylines</GameDir>
+    <ManagedDir>$(GameDir)/Cities_Skylines.app/Contents/Resources/Data/Managed</ManagedDir>
+    <ModsDir>$(HOME)/Library/Application Support/Colossal Order/Cities_Skylines/Addons/Mods</ModsDir>
+  </PropertyGroup>
+
+  <!-- Windows defaults (Steam) -->
+  <PropertyGroup Condition="'$(ManagedDirProvided)' != 'true' AND $([MSBuild]::IsOSPlatform('Windows'))">
+    <GameDir>C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines</GameDir>
+    <ManagedDir>$(GameDir)\Cities_Data\Managed</ManagedDir>
+    <ModsDir>$(LOCALAPPDATA)\Colossal Order\Cities_Skylines\Addons\Mods</ModsDir>
+  </PropertyGroup>
+
+  <!-- Linux defaults (Steam) -->
+  <PropertyGroup Condition="'$(ManagedDirProvided)' != 'true' AND $([MSBuild]::IsOSPlatform('Linux'))">
+    <GameDir>$(HOME)/.steam/steam/steamapps/common/Cities_Skylines</GameDir>
+    <ManagedDir>$(GameDir)/Cities_Skylines_Data/Managed</ManagedDir>
+    <ModsDir>$(HOME)/.local/share/Colossal Order/Cities_Skylines/Addons/Mods</ModsDir>
+  </PropertyGroup>
+
+</Project>

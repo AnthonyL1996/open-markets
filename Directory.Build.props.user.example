@@ -1,0 +1,20 @@
+<Project>
+  <!--
+    Copy this file to `Directory.Build.props.user` (drop the `.example`) and set the
+    path to your Cities: Skylines "Managed" folder (the one containing ICities.dll,
+    Assembly-CSharp.dll, ColossalManaged.dll, UnityEngine.dll).
+
+    `Directory.Build.props.user` is gitignored so your local path never gets committed.
+
+    Examples of where the Managed folder lives:
+      macOS  : ~/Library/Application Support/Steam/steamapps/common/Cities_Skylines/Cities_Skylines.app/Contents/Resources/Data/Managed
+      Windows: C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines\Cities_Data\Managed
+      Linux  : ~/.steam/steam/steamapps/common/Cities_Skylines/Cities_Skylines_Data/Managed
+  -->
+  <PropertyGroup>
+    <ManagedDir>/absolute/path/to/Cities_Skylines/.../Managed</ManagedDir>
+
+    <!-- Optional: override the auto-deploy target (the game's Addons/Mods folder). -->
+    <!-- <ModsDir>/absolute/path/to/Addons/Mods</ModsDir> -->
+  </PropertyGroup>
+</Project>

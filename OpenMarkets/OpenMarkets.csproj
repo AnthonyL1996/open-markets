@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Cities: Skylines runs Unity 5.6 / Mono => must target .NET Framework 3.5. -->
+    <TargetFramework>net35</TargetFramework>
+    <LangVersion>9</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+
+    <AssemblyName>OpenMarkets</AssemblyName>
+    <RootNamespace>OpenMarkets</RootNamespace>
+    <Configurations>Debug;Release</Configurations>
+
+    <!-- We supply our own AssemblyInfo.cs (with the AssemblyVersion("0.1.*") hot-reload trick). -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <!-- The version wildcard ("*") requires a non-deterministic build. -->
+    <Deterministic>false</Deterministic>
+
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+    <DebugType>portable</DebugType>
+    <!-- The game DLLs are not real reference assemblies; silence the related warning. -->
+    <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Lets `dotnet build` target net35 on macOS / Linux / Windows without a Framework install. -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3" PrivateAssets="all" />
+    <!-- Harmony 2.x for CS1. Ships CitiesHarmony.API.dll; excludes the central Harmony dll from output. -->
+    <PackageReference Include="CitiesHarmony.API" Version="2.2.0" />
+  </ItemGroup>
+
+  <!-- Game assemblies: referenced from your local install, never copied into the mod output. -->
+  <ItemGroup>
+    <Reference Include="ICities">
+      <HintPath>$(ManagedDir)/ICities.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="ColossalManaged">
+      <HintPath>$(ManagedDir)/ColossalManaged.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(ManagedDir)/Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(ManagedDir)/UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Fail early with a clear message if the game DLLs can't be found. -->
+  <Target Name="CheckManagedDir" BeforeTargets="ResolveAssemblyReferences">
+    <Error
+      Condition="!Exists('$(ManagedDir)/ICities.dll')"
+      Text="Could not find game DLLs at ManagedDir = '$(ManagedDir)'. Set the correct path in Directory.Build.props.user (copy Directory.Build.props.user.example), or pass -p:ManagedDir=... See README.md." />
+  </Target>
+
+  <!-- Auto-deploy to the game's Mods folder after each successful build. -->
+  <Target Name="DeployToMods" AfterTargets="Build" Condition="'$(ModsDir)' != ''">
+    <PropertyGroup>
+      <DeployDir>$(ModsDir)/$(AssemblyName)</DeployDir>
+    </PropertyGroup>
+    <MakeDir Directories="$(DeployDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DeployDir)" SkipUnchangedFiles="false" />
+    <Copy SourceFiles="$(TargetDir)CitiesHarmony.API.dll" DestinationFolder="$(DeployDir)"
+          SkipUnchangedFiles="false" Condition="Exists('$(TargetDir)CitiesHarmony.API.dll')" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pdb" DestinationFolder="$(DeployDir)"
+          SkipUnchangedFiles="false" Condition="Exists('$(TargetDir)$(AssemblyName).pdb')" />
+    <Message Importance="high" Text="OpenMarkets deployed -> $(DeployDir)" />
+  </Target>
+
+</Project>
