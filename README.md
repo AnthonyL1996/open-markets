@@ -6,6 +6,8 @@ Vanilla treats the outside world as invisible tax: trucks and trains roll in and
 
 ![Open Markets](PreviewImage.png)
 
+> **Quickstart:** install it (subscribe on the Workshop, or drop the two DLLs in your mods folder) and enable it in Content Manager → Mods. Open the Markets board and you're trading. For the living market, go to Options → Open Markets, create an account, and share a league code with friends — the public server is already the default.
+
 ## What it does
 
 Solo, it's quiet. Your outside-connection trade earns real per-commodity income at fixed prices, and a Markets board shows what each commodity is worth right now. Nothing to place, nothing to unlock.
@@ -58,6 +60,33 @@ flowchart TD
     S <--> DB
 ```
 
+### How prices move
+
+Your trade is what moves the market. Each member reports their net supply; the server aggregates it per commodity, clamps how far it can swing, layers on any active global event, and feeds the same price back to everyone.
+
+```mermaid
+flowchart LR
+    R[Members report<br/>net supply] --> A[Server aggregates<br/>per commodity]
+    A --> C1[Elasticity<br/>clamped 0.5×–2×]
+    E[Random global<br/>price events] --> M[Apply event multiplier]
+    C1 --> M
+    M --> C2[Re-clamp] --> F[Shared price index<br/>board + deal pricing]
+```
+
+## Solo vs online
+
+| | Solo | In a league |
+|---|---|---|
+| Per-commodity trade income | Yes | Yes |
+| Markets board | Yes — stable base prices | Yes — live, moving prices |
+| Prices move with your trade | — | Yes |
+| Global price events | — | Yes |
+| Contracts & baskets | — | Yes |
+| Bonds, loans & austerity | — | Yes |
+| Invest / bailout / Great Works | — | Yes |
+| Needs a server | No | Yes — public by default, or self-host |
+| Network activity | None | HTTPS to your league server |
+
 ## Install
 
 **Steam Workshop:** subscribe and it pulls in Harmony for you. *(Link goes here once it's published.)*
@@ -98,6 +127,22 @@ The one thing the build can't provide is four copyrighted game DLLs (`ICities`, 
 ## Compatibility
 
 The money hook is an additive Harmony patch and goods delivery uses public game APIs, so it's built to coexist with transfer and cargo mods like TM:PE and MoreEffectiveTransfer. If you hit a conflict, please [open an issue](../../issues).
+
+## FAQ
+
+**Do I need a server?** Not for solo play. For a league you do, but the free public server is the default, or you can self-host in one Docker command.
+
+**Is my save safe?** Yes. Everything is stored in the mod's own save section, and removing the mod leaves your city loading normally.
+
+**Does it work with other mods?** It's an additive Harmony patch and uses public game APIs, so it's built to coexist with mods like TM:PE and MoreEffectiveTransfer. If something conflicts, open an issue.
+
+**Can someone cheat the market?** There's no easy way. Pricing and settlement happen server-side and are clamped, and every league's money is conserved and audited, so a modified client can't fake prices or mint §.
+
+**What if the server goes down?** Everything falls back to solo (stable prices) and your saves keep loading. The online layer is best-effort and never required.
+
+**Does it work with Cities: Skylines II?** No, this is CS1 only.
+
+**Do I need any DLC?** No. The Industries DLC only adds physical-goods delivery into `[trade]` warehouses; everything else works without it.
 
 ## Credits and license
 
