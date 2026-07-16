@@ -10,17 +10,53 @@ Vanilla treats the outside world as invisible tax: trucks and trains roll in and
 
 Solo, it's quiet. Your outside-connection trade earns real per-commodity income at fixed prices, and a Markets board shows what each commodity is worth right now. Nothing to place, nothing to unlock.
 
-Go online (optional) and a league of friends shares one price index per commodity. Net exports drag a price down, hoarding lifts it, and random global events hit the whole league at once, so there are good days and bad days to sell. Online also adds:
+The mod really comes alive online, where a **league** of friends shares one economy: the same market, the same prices, the same events. What your leaguemates do reaches your city.
 
-- Peer contracts and multi-item baskets at locked-in prices
-- Bonds and loans for when someone can't pay
-- Austerity for cities that default: garnished and locked down on a real-time clock, so quitting the game won't get you out of it
-- Co-op levers to invest in a friend's economy or bail them out of austerity
-- A members panel with everyone's city stats and standing
+## Features
 
-With the Industries DLC, trades that move physical goods actually deliver into `[trade]`-tagged warehouses instead of only settling cash.
+**The market**
+- Every import/export (truck, train, ship, or plane) books real per-commodity income instead of faceless tax.
+- In a league, each commodity has one **shared price index** that your trade moves: net exports push it down for everyone, hoarding lifts it. It's **server-owned and clamped** (about 0.5×–2× base), so it tracks real supply and nobody can spike it at will.
+- The server periodically fires **league-wide price events** (spikes and slumps over several in-game days), so there are good and bad windows to sell.
 
-It's safe to try. Everything is stored in the mod's own save section, so removing the mod leaves your city loading normally, and offline there's no network activity at all.
+**Leagues & co-op**
+- **Trade deals** — one-off or recurring **contracts** and multi-item **baskets** at frozen, index-priced terms; every offer shows its total value before you agree.
+- **Influence RCI demand** — the **invest** lever spends § to give a leaguemate a targeted boost to a demand channel you choose (Residential, Commercial, or Industry & Office, plus attractiveness). The § transfers to them, so it's a real decision, not free money.
+- **Great Works** — leagues cooperate on shared megaprojects; finishing one grants lasting bonuses, like an export price edge.
+- **Shared city metrics** — the members panel shows each leaguemate's population, popularity, industry mix, finances, and online / last-seen status, so you can see who's booming and who to trade with (or prop up).
+- **Bonds, loans & bailouts** — a missed installment becomes a **bond** instead of just failing; negotiate peer loans, or pay down a friend's debt to rescue them.
+- **Austerity** — a city that defaults gets garnished and locked down (tax, budget, and demand) on the server's **real-time clock**, so quitting or reloading won't dodge it.
+
+**Fair play**
+- The **server is the referee** — pricing, settlement, and every timer live server-side, so a modified client can't fake prices or conjure income.
+- **Money is conserved and audited** — each league's balances must net to zero, so no exploit quietly mints §.
+- **Rate limits** on every endpoint plus a stricter cap on account creation; token auth over HTTPS.
+- **Failure is only reputational** — an unsettled or defaulted deal never blocks a save from loading. Worst case is austerity and a dented standing, never a broken city.
+
+**Also**
+- **Real delivery (Industries DLC)** — trades that move physical goods actually ship into `[trade]`-tagged warehouses, not just settle cash.
+- **Safe to try** — save- and removal-safe, additive Harmony patch, coexists with TM:PE and MoreEffectiveTransfer. Offline there's zero network activity.
+
+## How online play works
+
+Everyone runs their own game locally. The server is a shared referee and ledger, never a simulator, and solo play skips it entirely.
+
+```mermaid
+flowchart TD
+    P1[Your city<br/>CS1 + Open Markets]
+    P2[Leaguemate's city]
+    P3[Leaguemate's city]
+    S{{OpenMarkets server<br/>shared price index · ledger · referee}}
+    DB[(Leagues, deals,<br/>bonds, city profiles)]
+
+    P1 -- trade reports and deals over HTTPS --> S
+    P2 --> S
+    P3 --> S
+    S -- shared prices, contracts, standings --> P1
+    S --> P2
+    S --> P3
+    S <--> DB
+```
 
 ## Install
 
