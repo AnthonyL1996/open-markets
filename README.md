@@ -45,35 +45,13 @@ The mod really comes alive online, where a **league** of friends shares one econ
 
 Everyone runs their own game locally. The server is a shared referee and ledger, never a simulator, and solo play skips it entirely.
 
-```mermaid
-flowchart TD
-    P1[Your city<br/>CS1 + Open Markets]
-    P2[Leaguemate's city]
-    P3[Leaguemate's city]
-    S{{OpenMarkets server<br/>shared price index · ledger · referee}}
-    DB[(Leagues, deals,<br/>bonds, city profiles)]
-
-    P1 -- trade reports and deals over HTTPS --> S
-    P2 --> S
-    P3 --> S
-    S -- shared prices, contracts, standings --> P1
-    S --> P2
-    S --> P3
-    S <--> DB
-```
+![How online play works: each player's city reports trade and deals to the shared OpenMarkets server over HTTPS, and the server returns shared prices, contracts, and standings from its ledger.](docs/screenshots/how-online-works.png)
 
 ### How prices move
 
 Your trade is what moves the market. Each member reports their net supply; the server aggregates it per commodity, clamps how far it can swing, layers on any active global event, and feeds the same price back to everyone.
 
-```mermaid
-flowchart LR
-    R[Members report<br/>net supply] --> A[Server aggregates<br/>per commodity]
-    A --> C1[Elasticity<br/>clamped 0.5×–2×]
-    E[Random global<br/>price events] --> M[Apply event multiplier]
-    C1 --> M
-    M --> C2[Re-clamp] --> F[Shared price index<br/>board + deal pricing]
-```
+![How prices move: members report net supply, the server aggregates per commodity, clamps elasticity to 0.5x-2x base, applies any global event, and feeds one shared price index to everyone's board and deal pricing.](docs/screenshots/how-prices-move.png)
 
 ## Solo vs online
 
