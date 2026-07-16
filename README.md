@@ -10,6 +10,20 @@ The idea is borrowed from *SimCity* (2013) and its online multiplayer regions �
 
 > **Quickstart:** install it (subscribe on the Workshop, or drop the two DLLs in your mods folder) and enable it in Content Manager → Mods. Open the Markets board and you're trading. For the living market, go to Options → Open Markets, create an account, and share a league code with friends — the public server is already the default.
 
+## Contents
+
+- [What it does](#what-it-does)
+- [Features](#features)
+- [How online play works](#how-online-play-works)
+- [Solo vs online](#solo-vs-online)
+- [Install](#install)
+- [Playing with friends](#playing-with-friends)
+- [Building it](#building-it)
+- [Compatibility](#compatibility)
+- [FAQ](#faq)
+- [How this was built](#how-this-was-built)
+- [Credits and license](#credits-and-license)
+
 ## What it does
 
 Solo, it's quiet. Your outside-connection trade earns real per-commodity income at fixed prices, and a Markets board shows what each commodity is worth right now. Nothing to place, nothing to unlock.
