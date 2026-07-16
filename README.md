@@ -4,6 +4,8 @@ A trade-economy mod for **Cities: Skylines 1** (the original, not CS2).
 
 Vanilla treats the outside world as invisible tax: trucks and trains roll in and out, and all you see is a number. Open Markets replaces that with an actual commodity market. Every import and export earns real per-commodity money. Play alone and prices sit at stable base values. Play with friends and you share one live market, where dumping exports pushes a price down for everyone and the occasional global shock sends it swinging.
 
+The idea is borrowed from *SimCity* (2013) and its online multiplayer regions — the thing that made that game special was that your city was never a private island. You and your friends built neighbouring cities that specialised, traded resources back and forth, and pooled effort into shared Great Works, and it genuinely stung when those servers were retired. Open Markets brings that spirit to Cities: Skylines 1, which otherwise only ever plays solo on your own map. You join a **league** of friends who share one economy and cooperate on projects, while seeing how you stack up against everyone else on a global board. The point isn't to build alone — it's to build *together* with your friends and *against* other leagues, and to have your neighbours' decisions actually reach your city.
+
 ![Open Markets](PreviewImage.png)
 
 > **Quickstart:** install it (subscribe on the Workshop, or drop the two DLLs in your mods folder) and enable it in Content Manager → Mods. Open the Markets board and you're trading. For the living market, go to Options → Open Markets, create an account, and share a league code with friends — the public server is already the default.
@@ -143,6 +145,10 @@ The money hook is an additive Harmony patch and goods delivery uses public game 
 **Does it work with Cities: Skylines II?** No, this is CS1 only.
 
 **Do I need any DLC?** No. The Industries DLC only adds physical-goods delivery into `[trade]` warehouses; everything else works without it.
+
+## How this was built
+
+Full disclosure: Open Markets was built with heavy use of AI coding tools — mainly [Claude Code](https://www.anthropic.com/claude-code) and Codex. They generated and reviewed a large share of the mod code, the Go backend, the deployment setup, and the documentation (including this README), under human direction, testing, and design decisions throughout. Noting it here for transparency.
 
 ## Credits and license
 
