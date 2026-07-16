@@ -18,6 +18,7 @@ The idea is borrowed from *SimCity* (2013) and its online multiplayer regions �
 - [Solo vs online](#solo-vs-online)
 - [Install](#install)
 - [Playing with friends](#playing-with-friends)
+- [Connecting to a server: safety and trust](#connecting-to-a-server-safety-and-trust)
 - [Building it](#building-it)
 - [Compatibility](#compatibility)
 - [FAQ](#faq)
@@ -107,6 +108,31 @@ docker compose up --build      # serves on :8080
 ```
 
 Then point everyone's **Options → Open Markets → Server base URL** at your host. For anything internet-facing, put it behind a reverse proxy or a Cloudflare Tunnel so it gets TLS. The full walkthrough is in [`docs/RUNNING-THE-SERVER.md`](docs/RUNNING-THE-SERVER.md).
+
+## Connecting to a server: safety and trust
+
+The online layer works by trusting a server you choose. Solo play contacts nothing. But once you point the mod at a server and make an account, **that server is fully authoritative over your online economy** — the mod reports to it and applies whatever it sends back. That's exactly what you want from the public server or one a friend runs, but it's worth understanding what connecting to an *untrusted* server actually means. Here's the honest version.
+
+First, the reassuring part: this is a game mod that only speaks JSON over HTTP(S) and adjusts in-game economy state. **A malicious server cannot run code on your computer, read or write your files, or corrupt your save.** Everything it can do stays inside the game, and all of it is reversible.
+
+**What a hostile or buggy server *can* do — all in-game, all reversible:**
+- **Mess with your money.** The client trusts the server's prices and settlement log and doesn't clamp them, so a bad server can inflate or crater commodity prices, or post bogus settlements that add or drain § from your treasury.
+- **Lock your city down.** It can hold your city in *austerity* — 29% taxes, capped service budgets, reduced RCI demand — for as long as you stay connected.
+- **Nudge your trade depots.** On trade deliveries it can move stock in and out of your `[trade]`-tagged warehouses.
+- **See your data.** By design the server, and everyone in your league, sees your shared city profile: population, finances, happiness, industry mix, your city name, and your display name. Whoever runs the server sees all of it, for every member.
+
+**What it cannot do:** run code, touch your filesystem, corrupt or lock your save, or leave anything behind once you remove the mod. Go offline or disable the mod and every effect above is undone. (The one non-economy risk is a crash — a deliberately malformed response could crash the game — which is a nuisance, not a compromise.)
+
+**Your account credential is per install, not per server.** Your account id and secret are stored once, and the mod sends them to whatever endpoint is set. If you created an account on one server and later connect to another, the second server receives that same secret and could replay it against the first. **So use a separate account for each server you don't fully trust** — don't reuse your public-server account on someone's random server.
+
+**Use HTTPS.** The default endpoint is HTTPS and TLS certificates are properly checked. But a bare `host:port` is treated as plain `http://`, which sends your token in the clear — always enter an `https://` URL for anything crossing the internet.
+
+**The two dashboards, and who sees what:**
+- **The server's operator console** (`/console`) is a web page the *server* serves for whoever runs it. It's just a convenient UI over the same API — the operator already has full authority over the shared economy and every member's data simply by running the server, with or without the console. Operators can turn it off (`OM_CONSOLE=0`) or put it behind a token; the public server keeps it off.
+- **The in-game terminal** (the Markets board, contracts, and Members panel inside CS1) is on *your* side. It shows you your league's shared data, including leaguemates' city profiles, which they've likewise chosen to share. It only displays what the server sends and exposes nothing extra about your machine.
+- **Check the books yourself.** The API's `/audit` endpoint reports whether a league's balances net to zero. A non-zero total means the server is minting or burning money — a red flag you can verify without trusting the operator's word.
+
+**Bottom line.** Treat a league server like any game host: join ones run by people you trust, or **host your own** — it's one Docker command (see [Playing with friends](#playing-with-friends)). If you do connect somewhere unfamiliar, use a throwaway account and an `https://` URL, and remember the worst case is in-game griefing you can undo by disconnecting, never harm to your computer or your save.
 
 ## Building it
 
