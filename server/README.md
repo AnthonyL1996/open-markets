@@ -47,31 +47,35 @@ scale and clamp bounds (`OM_VOLUME_REF`, `OM_INDEX_MIN`/`MAX`) **must match the 
 | GET    | `/prices?league=`| member      | **the current client feed** — per-commodity `{version, ts, commodities:[{commodity, index, eventPct, history}]}` |
 | GET    | `/leagues/members?league=` | member | league roster + each member's standing, online/last-seen, and city profile |
 | POST   | `/cityprofile`   | account     | report your own city snapshot (population/happiness/industry/finances) for leaguemates |
-| POST   | `/contracts`     | member      | offer a bilateral contract — `{leagueId, type, commodity, qty, unitPrice, installments, counterparty, side}` |
-| GET    | `/contracts?league=` | member  | the caller's contracts in a league (newest first) |
-| POST   | `/contracts/{id}/accept` `/decline` `/cancel` | party | consent transitions (accept/decline by the counterparty; cancel by the offerer) |
-| POST   | `/contracts/{id}/settle` | party | book the caller's next installment |
+| GET    | `/cityprofile/history?league=&account=` | member | a leaguemate's retained city time-series + net-§ curve |
 | POST   | `/trades`        | member      | offer a two-sided **basket** trade — `{leagueId, counterparty, defaultRateBps, installments, items:[…]}` |
-| GET    | `/trades?league=`| member      | the caller's trades in a league |
-| POST   | `/trades/{id}/accept` `/decline` `/cancel` `/settle` `/shortfall` | party | trade transitions / settle a leg / report an undelivered give |
+| GET    | `/trades?league=`| member      | the caller's trades in a league (newest first) |
+| POST   | `/trades/{id}/accept` `/decline` `/cancel` `/settle` `/shortfall` | party | trade transitions / settle a leg (the **net payer** settles) / report an undelivered give |
 | GET    | `/bonds?league=` | member      | the caller's bonds (debts from defaulted installments + negotiated loans) |
 | POST   | `/bonds/{id}/settle` | party   | repay a bond installment |
 | POST   | `/loans` · `/loans/{id}/counter` `/accept` `/decline` `/cancel` | member/party | negotiate a peer loan |
 | GET    | `/settlements?league=&since=` | member | the league's server-authored settlement-event feed (cash booking) |
 | GET    | `/citystate?league=` | member  | the caller's austerity status, active co-op effects, and the wall-clock due interval |
 | POST   | `/investment-office?league=` | member | co-op lever: grant a leaguemate a §-scaled, targeted demand + attractiveness buff (§ transfers) |
+| GET    | `/investments?league=` | member | league-wide active investments + durable history |
 | POST   | `/bailout?league=` | member   | co-op lever: pay down a leaguemate's defaulted bonds (§ transfers to the creditor) |
 | GET    | `/audit?league=` | member      | per-account net cash + the conservation total (must be 0 — a live invariant check) |
+| GET/POST | `/projects?league=` · `/projects/{id}/contribute-gold` `/contribute-goods` | member | co-op **Great Works** — view + contribute §/commodities |
+| GET    | `/leaderboards?league=` · `/global-leaderboards` | member / account | per-league ranked boards + titles; cross-league anonymized boards |
+| GET    | `/feed?league=` · `/chronicle?league=` · `/crises` | member / account | league activity feed, the narrated saga, and active shared crises |
+| POST   | `/accounts/name` | account     | set the display name shown to leaguemates |
+| —      | `/admin/*` · `/console` | admin token | operator surface, token-gated by `OM_CONSOLE_TOKEN` (`/console` UI also gated by `OM_CONSOLE`) |
 
-### Contracts (cash-settled bilateral agreements)
+### Trades (two-sided cash-settled baskets)
 
-A contract is a fixed deal between two league members — a seller (delivers, gets paid) and a buyer (pays)
-— over **N installments** (1 = a one-shot future; N>1 = a recurring supply deal). **CS1 cannot force
-physical cargo**, so a contract is an *accounting overlay*: each party settles **its own leg in in-game
-cash** when ready (the game client on a day rollover; the operator CLI on command). The server is the
-ledger + consent flow only — it never moves money, and an unsettled/defaulted contract must never block a
-save load (risk is reputational, by design). Lifecycle: `offered → active → completed`
-(or `declined`/`cancelled`).
+A trade is a fixed two-sided deal between two league members: each side lists what it **gives** and
+**gets** (a basket of commodities), valued at the live index, over **N installments** (1 = a one-shot
+swap; N>1 = a recurring deal). **CS1 cannot force physical cargo**, so a trade is an *accounting overlay*:
+each installment the **net payer settles in in-game cash** (the game client on a day rollover; the
+operator console on command). The server is the ledger + consent flow only — it never moves money itself,
+and an unsettled/defaulted trade must never block a save load (risk is reputational, by design).
+Lifecycle: `offered → active → completed` (or `declined`/`cancelled`); a missed installment converts to a
+**bond**. (An earlier single-commodity "contract" endpoint was folded into `/trades`.)
 
 **Auth:** `Authorization: Bearer <accountId>.<secret>`, or `?account=&secret=` query params on GET
 (so a bare `UnityWebRequest.Get` can authenticate without custom headers).
