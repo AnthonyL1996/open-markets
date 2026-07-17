@@ -84,7 +84,7 @@ Your trade is what moves the market. Each member reports their net supply; the s
 
 ## Install
 
-**Steam Workshop:** subscribe and it pulls in Harmony for you. *(Link goes here once it's published.)*
+**Steam Workshop ([subscribe here](https://steamcommunity.com/sharedfiles/filedetails/?id=3766546660)):** it pulls in Harmony automatically.
 
 **Manual:** download the latest [release](../../releases), drop `OpenMarkets.dll` and `CitiesHarmony.API.dll` into your mods folder, then enable it in Content Manager → Mods.
 
