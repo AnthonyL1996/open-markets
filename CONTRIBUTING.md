@@ -135,6 +135,16 @@ If you're preparing a release (Workshop listing, changelog entry, etc.), see
   in the PR description).
 - Match the surrounding code's style rather than introducing a new convention.
 
+## Versioning & releases
+
+Open Markets follows [Semantic Versioning](https://semver.org) — `vMAJOR.MINOR.PATCH`:
+
+- **MAJOR** — breaking changes to the client/server API or the save-blob format (an old client and a new server, or vice versa, may not interoperate).
+- **MINOR** — new, backward-compatible features.
+- **PATCH** — bug fixes and balance tweaks.
+
+Each public release is an **annotated git tag** (`git tag -a vX.Y.Z -m "…"`) pushed to the repo, paired with a matching GitHub Release and Steam Workshop changelog entry. When the client/server protocol changes, bump MAJOR and state the minimum compatible server version in the release notes, so self-hosters know when they must update. Keep the three in sync: tag, GitHub Release, Workshop changelog.
+
 ## Design background
 
 For the "why" behind design decisions, see [`DESIGN.md`](./DESIGN.md) (mod design rationale) and
